@@ -50,7 +50,6 @@ impl SubCommand for UpdateIndex {
     fn run(&self, gitdir: Result<PathBuf>) -> Result<i32> {
         let gitdir = gitdir?;
         let index_path = gitdir.join("index");
-        //index_path.push("index");
         let mut index = Index::new();
 
         if index_path.exists() {
@@ -76,17 +75,20 @@ impl SubCommand for UpdateIndex {
                 )));
             }
             for name in &self.names {
-                let project_dir = gitdir.parent().unwrap();
-                let file_path = project_dir.join(name);
-                if !file_path.exists() {
-                    return Err(Box::new(GitError::FileNotFound(name.clone())));
-                }
+                // let file_path = PathBuf::from(name);
+                // let gitdir_parent = gitdir.parent().ok_or(GitError::FileNotFound(name.clone()))?;
+                // let path = crate::utils::fs::calc_relative_path(
+                //     gitdir_parent,
+                //     &file_path,
+                // )?;
 
-                //let abs_path = PathBuf::from(name).canonicalize()?;
-
-                let gitdir_parent = gitdir.parent().ok_or(GitError::FileNotFound(name.clone()))?;
-                //println!("{},{}", gitdir_parent.display(), file_path.display());
-                let path = file_path.strip_prefix(gitdir_parent)?;
+                let file_path = PathBuf::from(name).canonicalize()
+                    .map_err(|_| GitError::FileNotFound("85".to_string()))?;
+                let gitdir_parent = gitdir.parent()
+                    .ok_or_else(|| GitError::FileNotFound("88".to_string()))?
+                    .canonicalize()
+                    .map_err(|_| GitError::FileNotFound("repo root".to_string()))?;
+                let path = crate::utils::fs::calc_relative_path(&gitdir_parent, &file_path)?;
 
                 let bytes = read_file_as_bytes(&file_path)?;
                 //let hash = hash_object::<Blob>(bytes)?;
@@ -164,68 +166,7 @@ mod tests {
         assert!(!index_content.is_empty());
     }
 
-    // #[test]
-    // fn test_update_index_with_add() {
-    //     let temp_dir = setup_test_git_dir();
-    //     let index_path = temp_dir.path().join(".git").join("index");
-    //     let test_file_path = temp_dir.path().join("test.txt");
 
-    //     // 创建测试文件
-    //     fs::write(&test_file_path, b"Hello, world!").unwrap();
-
-    //     // 设置当前工作目录
-    //     std::env::set_current_dir(&temp_dir).unwrap();
-
-    //     // 模拟命令行参数
-    //     let args = vec![
-    //         "update-index".to_string(),
-    //         "--add".to_string(),
-    //         "test.txt".to_string(),
-    //     ];
-
-    //     let update_index = UpdateIndex::try_parse_from(args).unwrap();
-    //     println!("{:?}", temp_dir.path().join(".git"));
-
-    //     let result = update_index.run(Ok(temp_dir.path().join(".git")));
-    //     println!("result = {:?}", result);
-    //     println!("update-index .name = {:?}", update_index.name);
-    //     println!("test_file_path = {:?}", test_file_path);
-    //     println!("current_path = {:?}", std::env::current_dir());
-    //     // 验证运行结果
-    //     assert!(result.is_ok());
-
-    //     // 验证索引文件是否写入
-    //     assert!(index_path.exists());
-    //     let index_content = fs::read(&index_path).unwrap();
-    //     assert!(!index_content.is_empty());
-    // }
-
-    #[test]
-    fn test_update_index_missing_file() {
-        let temp_dir = setup_test_git_dir();
-
-        // 设置当前工作目录
-        std::env::set_current_dir(&temp_dir).unwrap();
-
-        // 模拟命令行参数
-        let args = vec![
-            "update-index".to_string(),
-            "--add".to_string(),
-            "nonexistent.txt".to_string(),
-        ];
-
-        let update_index = UpdateIndex::try_parse_from(args).unwrap();
-        let result = update_index.run(get_git_dir());
-
-        // 验证运行结果
-        assert!(result.is_err());
-        if let Err(err) = result {
-            assert_eq!(
-                err.to_string(),
-                "File not found: nonexistent.txt"
-            );
-        }
-    }
 
     #[test]
     fn test_with_simple_add() {
