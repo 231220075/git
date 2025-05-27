@@ -35,9 +35,9 @@ use nom::{
 };
 
 
-pub trait ObjType: TryFrom<Vec<u8>> + Into<Vec<u8>> {
+pub trait ObjType: TryFrom<Vec<u8>> + Into<Vec<u8>> + TryFrom<Obj> {
     const VALUE: &'static str;
-    const MODE: u32 = 0o040000;
+    const MODE: u32;
 }
 
 pub enum Obj {
@@ -54,6 +54,7 @@ impl Obj {
             Obj::C(_) => Commit::VALUE,
         }
     }
+
 }
 
 impl TryFrom<Vec<u8>> for Obj {

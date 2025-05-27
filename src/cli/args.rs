@@ -10,9 +10,10 @@ use crate::{
         to_pathbuf,
     },
     command::{
-        Init, Add, Rm, Commit,
+        Init, Add, Rm, Commit, Branch, Checkout,
         CatFile, SubCommand, HashObject,
         UpdateIndex, CommitTree, ReadTree, WriteTree,
+        Merge,
     },
     GitError,
     Result,
@@ -58,9 +59,12 @@ pub fn get_args(raw_args: impl Iterator<Item=String>) -> Result<Box<dyn SubComma
         "hash-object" => HashObject::from_args(raw_args),
         "cat-file" => CatFile::from_args(raw_args),
         "commit" => Commit::from_args(raw_args),
+        "merge" => Merge::from_args(raw_args),
         "init"   => Init::from_args(raw_args),
         "add"    => Add::from_args(raw_args),
         "rm"     => Rm::from_args(raw_args),
+        "branch" => Branch::from_args(raw_args),
+        "checkout" => Checkout::from_args(raw_args),
         "update-index" => UpdateIndex::from_args(raw_args),
         "write-tree" => WriteTree::from_args(raw_args),
         "commit-tree" => CommitTree::from_args(raw_args),
@@ -84,19 +88,7 @@ mod test {
         let args = to_strings(&["init"]);
         let command = get_args(args);
         assert!(command.is_ok());
-        assert_eq!(format!("{:?}", command.unwrap()), format!("{:?}", Init{}));
-
-        let args = to_strings(&["init", "-V", "foo:bar"]);
-        let command = get_args(args);
-        assert!(command.is_ok());
-
-        assert_eq!(format!("{:?}", command.unwrap()), format!("{:?}", Init{}));
-
-        let args = to_strings(&["init", "--", "aaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbb"]);
-        let command = get_args(args);
-        assert!(command.is_ok());
-
-        assert_eq!(format!("{:?}", command.unwrap()), format!("{:?}", Init{}));
+        assert_eq!(format!("{:?}", command.unwrap()), format!("{:?}", Init{dir: None}));
     }
 
     #[test]

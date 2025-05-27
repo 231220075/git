@@ -20,11 +20,11 @@ use super::SubCommand;
 #[derive(Parser, Debug)]
 #[command(name = "read-tree", about = "create a tree object according to the current index")]
 pub struct ReadTree {
-    #[arg(long, required = true, help = "Prefix to add to all paths in the tree")]
-    prefix: String,
+    #[arg(long, help = "Prefix to add to all paths in the tree")]
+    pub prefix: Option<String>,
 
     #[arg(required = true, help = "tree hash")]
-    tree_hash: String,
+    pub tree_hash: String,
 
 }
 
@@ -44,10 +44,14 @@ fn restore_tree_to_index(gitdir: &Path, tree_hash: &str, prefix: &str, index: &m
         match entry.mode {
             FileMode::Tree => {
                 // 目录，递归
-                let sub_prefix = format!("{}/{}", prefix, entry.path.display());
+                let sub_prefix = if prefix.is_empty() {
+                    entry.path.display().to_string()
+                } else {
+                    format!("{}/{}", prefix.trim_end_matches('/'), entry.path.display())
+                };
                 restore_tree_to_index(gitdir, &entry.hash, &sub_prefix, index)?;
             }
-            FileMode::Blob | FileMode::Commit | FileMode::Symbolic => {
+            FileMode::Exec | FileMode::Blob | FileMode::Commit | FileMode::Symbolic => {
                 // 普通文件、可执行文件、符号链接
                 let file_path = if prefix.is_empty() {
                     entry.path.to_str().unwrap().to_string()
@@ -93,11 +97,15 @@ impl SubCommand for ReadTree {
         //     GitError::InvalidCommand("Failed to write index file".to_string())
         // })?;
         // Ok(0)
-
-        index = index.read_from_file(&index_path).map_err(|_| {
-            GitError::InvalidCommand("Failed to read index file".to_string())
-        })?;
-        restore_tree_to_index(&gitdir, &self.tree_hash, &self.prefix, &mut index)?;
+        if let Some(prefix) = &self.prefix{
+            index = index.read_from_file(&index_path).map_err(|_| {
+                GitError::InvalidCommand("Failed to read index file".to_string())
+            })?;
+            restore_tree_to_index(&gitdir, &self.tree_hash, prefix, &mut index)?;
+        }
+        else{
+            restore_tree_to_index(&gitdir, &self.tree_hash, "", &mut index)?;
+        }
         index.write_to_file(&index_path).map_err(|_| {
             GitError::InvalidCommand("Failed to write index file".to_string())
         })?;
@@ -105,7 +113,6 @@ impl SubCommand for ReadTree {
     }
 
 
-    
 }
 
 #[cfg(test)]
@@ -136,4 +143,38 @@ mod test {
         assert!(out.contains("apk/"));
     }
 
+
+
+
+        #[test]
+    fn test_read_tree_without_prefix() {
+        let temp = setup_test_git_dir();
+        let temp_path = temp.path();
+        let temp_path_str = temp_path.to_str().unwrap();
+
+        // 创建文件并添加到 index
+        let file1 = mktemp_in(&temp).unwrap();
+        let file1_str = file1.to_str().unwrap();
+        let file2 = mktemp_in(&temp).unwrap();
+        let file2_str = file2.to_str().unwrap();
+        std::fs::write(&file1, "content1").unwrap();
+        std::fs::write(&file2, "content2").unwrap();
+        let _ = shell_spawn(&["git", "-C", temp_path_str, "update-index", "--add", &file1_str, &file2_str]).unwrap();
+
+        // 写入 tree
+        let tree_hash = shell_spawn(&["git", "-C", temp_path_str, "write-tree"]).unwrap();
+        let tree_hash = tree_hash.trim();
+
+        // 清空 index
+        let _ = shell_spawn(&["git", "-C", temp_path_str, "rm", "-r", "--cached", ":/"]).unwrap();
+
+        // 使用 read-tree 恢复 tree 到 index
+        let _ = shell_spawn(&["cargo", "run", "--", "-C", temp_path_str, "read-tree", tree_hash]).unwrap();
+
+        // 验证 index 是否正确恢复
+        let out = shell_spawn(&["git", "-C", temp_path_str, "ls-files", "--stage"]).unwrap();
+        println!("out: {}", out);
+        assert!(out.contains(file1.file_name().unwrap().to_str().unwrap()));
+        assert!(out.contains(file2.file_name().unwrap().to_str().unwrap()));
+    }
 }

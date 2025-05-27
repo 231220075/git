@@ -49,7 +49,7 @@ impl WriteTree {
         Ok(tree_content)
     }
 
-    fn build_tree_recursive(&self, gitdir: &Path, entries: &[IndexEntry], prefix: &str) -> Result<String>{
+    fn build_tree_recursive(gitdir: &Path, entries: &[IndexEntry], prefix: &str) -> Result<String>{
         use std::collections::BTreeMap;
         let mut tree_entries: BTreeMap<String, (u32, String, bool)> = BTreeMap::new();
         let mut subdir_map: BTreeMap<String, Vec<IndexEntry>> = BTreeMap::new();
@@ -94,7 +94,7 @@ impl WriteTree {
             } else {
                 format!("{}/{}", prefix, subdir)
             };
-            let sub_tree_hash = self.build_tree_recursive(gitdir, &sub_entries, &sub_prefix)?;
+            let sub_tree_hash = Self::build_tree_recursive(gitdir, &sub_entries, &sub_prefix)?;
             tree_entries.insert(
                 subdir,
                 (0o040000, sub_tree_hash, true),
@@ -118,19 +118,25 @@ impl WriteTree {
         let mut objpath = gitdir.join("objects");
         objpath.push(&tree_hash[0..2]);
         objpath.push(&tree_hash[2..]);
-        println!("objpath: {:?}", objpath);
+        //println!("objpath: {:?}", objpath);
         std::fs::create_dir_all(objpath.parent().unwrap())?;
-        println!("objpath: {:?}", objpath);
+        //println!("objpath: {:?}", objpath);
         let compressed = compress_object::<Tree>(tree_content)?;
-        println!("compressed: {:?}", compressed);
+        //println!("compressed: {:?}", compressed);
         std::fs::write(objpath, compressed)?;
-        println!("tree_hash: {}", tree_hash);
+        //println!("tree_hash: {}", tree_hash);
         Ok(tree_hash)
-  
+
     }
 
-
+    pub fn lazy_fucker(gitdir: PathBuf) -> Result<String> {
+        let index_path = gitdir.join("index");
+        let index = Index::new();
+        let index = index.read_from_file(&index_path)?;
+        Self::build_tree_recursive(&gitdir, &index.entries, "")
+    }
 }
+
 impl SubCommand for WriteTree {
     // fn run(&self, gitdir: Result<PathBuf>) -> Result<i32> {
     //     let gitdir = gitdir?;
@@ -159,10 +165,8 @@ impl SubCommand for WriteTree {
         let gitdir = gitdir?;
         let index_path = gitdir.clone().join("index");
         let index = Index::new();
-        let index = index.read_from_file(&index_path).map_err(|_| {
-            GitError::InvalidCommand(index_path.to_str().unwrap().to_string())
-        })?;
-        let tree_hash = self.build_tree_recursive(&gitdir, &index.entries, "")?;
+        let index = index.read_from_file(&index_path)?;
+        let tree_hash = Self::build_tree_recursive(&gitdir, &index.entries, "")?;
         println!("{}", tree_hash);
         Ok(0)
     }

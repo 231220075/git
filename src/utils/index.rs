@@ -9,6 +9,10 @@ use nom::{
     IResult,
 };
 use std::iter::repeat_n;
+use crate::{
+    GitError,
+    Result,
+};
 
 #[derive(Debug)]
 pub struct IndexEntry {
@@ -28,9 +32,15 @@ impl IndexEntry {
     }
 
 }
-
+#[derive(Debug)]
 pub struct Index {
     pub entries: Vec<IndexEntry>,
+}
+
+impl Default for Index {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Index {
@@ -38,8 +48,8 @@ impl Index {
         Index { entries: Vec::new() }
     }
 
-    pub fn add_entry(&mut self, entry: IndexEntry) {
-        self.entries.push(entry);
+    pub fn add_entry(&mut self, new_entry: IndexEntry) {
+        self.entries.push(new_entry);
     }
 
     pub fn write_to_file(&self, path: &Path) -> std::io::Result<()> {
@@ -74,7 +84,7 @@ impl Index {
         buffer.extend_from_slice(&(self.entries.len() as u32).to_be_bytes());
 
         for entry in &self.entries {
-            println!("write to file");
+            // println!("write {} to file {}", entry.name, path.display());
             buffer.extend_from_slice(&0u32.to_be_bytes()); // ctime
             buffer.extend_from_slice(&0u32.to_be_bytes()); // ctime_nsec
             buffer.extend_from_slice(&0u32.to_be_bytes()); // mtime
@@ -212,10 +222,10 @@ impl Index {
     }
 
 
-    pub fn read_from_file(&self, path: &Path) -> std::io::Result<Self> {
+    pub fn read_from_file(&self, path: &Path) -> Result<Self> {
         let bytes = std::fs::read(path)?;
         let (_, index) = Self::parse_index(&bytes).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to parse index file")
+            GitError::InvalidCommand(path.to_str().unwrap().to_string())
         })?;
         Ok(index)
     }

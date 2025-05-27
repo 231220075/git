@@ -1,4 +1,5 @@
 use std::{
+    time::Instant,
     mem,
     io::{
         self,
@@ -25,22 +26,35 @@ use crate::utils::{
     error,
 };
 
+pub fn time_it<F>(func: F) -> crate::Result<u128>
+where
+    F: Fn() -> crate::Result<()>
+{
+    let before = Instant::now();
+    func()?;
+    Ok(before.elapsed().as_millis())
+
+}
+
 pub fn shell_spawn(command_list: &[&str]) -> Result<String,String> {
     let command = command_list[0];
     // 创建 Command 实例并运行命令
     let output = Command::new(command)
         .args(&command_list[1..])
         .output()
-        .map_err(|e| format!("Failed to execute command '{}': {}", command, e))?;
+        .map_err(|e| {
+            println!("Failed to execute command '{}': {}", command, e);
+            "".to_string()
+        })?;
 
     // 检查命令的退出状态
     if !output.status.success() {
-        Err(format!(
-            "Command '{}' failed with exit code: {:?}, output: {}",
+        println!("{}", format!(
+            "Command '{}' failed with exit code: {:?}, output: ",
             command_list.iter().join(" "),
-            output.status.code(),
-            String::from_utf8_lossy(&output.stderr).into_owned() + &String::from_utf8_lossy(&output.stdout)
-        ))
+            output.status.code()
+        ) + &String::from_utf8_lossy(&output.stderr) + &String::from_utf8_lossy(&output.stdout));
+        Err("".into())
     }
     else {
         // 将 stdout 转换为 String
@@ -51,6 +65,8 @@ pub fn shell_spawn(command_list: &[&str]) -> Result<String,String> {
 pub fn setup_test_git_dir() -> tempfile::TempDir {
     let temp_dir = tempdir().unwrap();
     let _ = shell_spawn(&["git", "-C", temp_dir.path().to_str().unwrap(), "init"]).unwrap();
+    let _ = shell_spawn(&["git", "-C", temp_dir.path().to_str().unwrap(), "config", "user.name", "rust-git"]).unwrap();
+    let _ = shell_spawn(&["git", "-C", temp_dir.path().to_str().unwrap(), "config", "user.email", "163@163.com"]).unwrap();
     let project_root = env!("CARGO_MANIFEST_DIR");
     std::env::set_current_dir(project_root).unwrap();
     temp_dir
@@ -95,7 +111,7 @@ where
 
 pub type Args<'a> = &'a[&'a str];
 pub type ArgsList<'a> = &'a[(Args<'a>, bool)];
-pub fn cmd_seq<'a>(args_list: ArgsList<'a>) -> impl FnMut(Args<'a>) -> Result<Vec<String>, String>
+pub fn cmd_seq<'a, 'b>(args_list: ArgsList<'a>) -> impl FnMut(Args<'b>) -> Result<Vec<String>, String>
 {
     move |command: Args| {
         let command = command.iter().collect::<Vec<_>>();
@@ -111,7 +127,7 @@ pub fn cmd_seq<'a>(args_list: ArgsList<'a>) -> impl FnMut(Args<'a>) -> Result<Ve
             .map(|(cmd, is_print)| {
                 let output = shell_spawn(cmd.as_slice());
                 if *is_print {
-                    println!("{:?}", output);
+                    println!("cmd: {} output: {:?}", cmd.join(" "), output);
                 }
                 output
             })

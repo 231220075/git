@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+dd if=/dev/zero of=large_file.bin bs=1M count=10
+
+# 创建一个空目录 ad_test2
+
+mkdir ad_test2
+cp rust-git ad_test2/
+cd ad_test2
+
+./rust-git init
+./rust-git checkout -b main
+cp ../large_file.bin ./
+
+./rust-git add large_file.bin
+
+commit_hash=$(./rust-git commit -m "add large file" 2>&1)
+
+if [[  -z $commit_hash ]];then
+    echo  commit hash not found
+    exit 1
+fi
+
+echo commit_changes: $commit_hash
+
+# 检查 .git/objects 目录下是否存在对应的对象文件
+object_dir=".git/objects/${commit_hash:0:2}"
+object_file="$object_dir/${commit_hash:2}"
+if [ -d "$object_dir" ] && [ -f "$object_file" ]; then
+echo "Object file $object_file exists"
+else
+echo "Object file $object_file does not exist"
+exit 1
+fi
+echo "Advanced Test 2 passed: Large file is correctly stored"

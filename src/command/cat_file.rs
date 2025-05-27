@@ -61,8 +61,8 @@ impl CatFile {
 
     pub fn cat_type(&self, path: PathBuf) -> Result<()> {
         let bytes = decompress_file_as_bytes(&path)?;
-        let (_, (t, _)) = parse_meta(&bytes).map_err(GitError::invalid_obj)?;
-        println!("{}", String::from_utf8(t.to_vec()).map_err(GitError::invalid_obj)?);
+        let (_, (t, _)) = parse_meta(&bytes).map_err(|x|x.to_string()).map_err(GitError::invalid_obj)?;
+        println!("{}", String::from_utf8(t.to_vec()).map_err(|x|x.to_string()).map_err(GitError::invalid_obj)?);
         Ok(())
     }
 }
@@ -166,6 +166,7 @@ mod test {
         let hash = hash.strip_suffix("\n").unwrap();
 
         let origin = shell_spawn(&["git", "-C", temp_path_str, "cat-file", "-p", &hash]).unwrap();
+        println!("{}", origin);
         let real = shell_spawn(&["cargo", "run", "--quiet", "--", "-C", temp_path_str, "cat-file", "-p", &hash]).unwrap();
         println!("{}", real);
         assert_eq!(origin, real);

@@ -1,0 +1,46 @@
+#!/bin/bash
+set -e
+# 测试 rust-git 的 add 和 commit 功能
+# 创建⼀个空⽬录 test2
+mkdir test2
+# 拷⻉ rust-git 到 test2 ⽬录
+cp tests/rust-git test2/
+cp tests/git.png test2/git.png
+echo test1.txt.content > test2/test1.txt
+# 拷⻉⾃带的 test.png 图片到 test2 ⽬录
+# 请注意，除了图片，也需要考虑空文件哦。
+# 请注意，除了图片，也需要考虑空文件哦。
+cp tests/test.png test2/
+# 进入 test2 ⽬录
+cd test2
+# 执⾏ rust-git init
+./rust-git init
+# 执⾏ rust-git add 和 rust-git commit
+./rust-git add git.png
+hash1=$(/bin/bash -c './rust-git commit -m "add png file" 2>&1')
+echo hash1 = $hash1
+# 添加第⼆个文件
+# 创建文件 test1.txt 并添加内容
+# 执⾏ git add 和 git commit
+./rust-git add test1.txt
+hash2=$(./rust-git commit -m "Add test file" 2>&1)
+echo hash2 = $hash2
+# 检查是否成功获取哈希值
+if [ -z "$hash1" ] || [ -z "$hash2" ]; then
+    [ -z "$hash1" ] && echo 不存在 "$hash1"
+    [ -z "$hash2" ] && echo 不存在 "$hash2"
+    exit 1
+fi
+# 提取哈希值的前两位和后⾯的位数。请注意，⼀定要只返回hash值。
+hash_prefix1=${hash1:0:2}
+hash_suffix1=${hash1:2}
+hash_prefix2=${hash2:0:2}
+hash_suffix2=${hash2:2}
+# 检查 .git/objects ⽬录下是否存在对应的对象文件。如果文件不存在，则打印报错信息。
+if [ -f ".git/objects/$hash_prefix1/$hash_suffix1" ] && [ -f ".git/objects/$hash_prefix2/$hash_suffix2" ]; then
+    echo pass test
+else
+    [ -f ".git/objects/$hash_prefix1/$hash_suffix1" ] || echo .git/objects/$hash_prefix1/$hash_suffix1 不存在
+    [ -f ".git/objects/$hash_prefix2/$hash_suffix2" ] || echo .git/objects/$hash_prefix2/$hash_suffix2 不存在
+    exit 1
+fi

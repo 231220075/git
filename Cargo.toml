@@ -6,9 +6,11 @@ edition = "2024"
 [dependencies]
 byteorder = "1.5.0"
 clap = { version = "4.5.35", features = ["derive"] }
+diffy = "0.4.2"
 flate2 = "1.1.1"
 hex = "0.4.3"
 itertools = "0.14.0"
 nom = "8.0.0"
 sha1 = "0.10.6"
+similar = "2.7.0"
 tempfile = "3.19.1"

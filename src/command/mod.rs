@@ -21,11 +21,13 @@ pub mod update_index;
 pub mod read_tree;
 pub mod write_tree;
 pub mod commit_tree;
+pub mod update_ref;
 
 
 pub use init::Init;
 pub use add::Add;
 pub use rm::Rm;
+pub use merge::Merge;
 pub use commit::Commit;
 pub use cat_file::CatFile;
 pub use hash_object::HashObject;
@@ -33,6 +35,9 @@ pub use update_index::UpdateIndex;
 pub use read_tree::ReadTree;
 pub use write_tree::WriteTree;
 pub use commit_tree::CommitTree;
+pub use update_ref::UpdateRef;
+pub use branch::Branch;
+pub use checkout::Checkout;
 
 
 #[allow(unused)]

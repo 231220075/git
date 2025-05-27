@@ -1,0 +1,79 @@
+#!/bin/bash
+# 测试 rust-git 的 merge 功能
+# 创建⼀个空⽬录 test8
+set -e
+
+# GIT=git
+GIT=./rust-git
+
+mkdir test8
+# 拷⻉ rust-git 到 test8 ⽬录
+cp tests/rust-git test8/
+# 进入 test8 ⽬录
+cd test8
+# 执⾏ rust-git init
+$GIT init
+# 创建 main 分⽀并切换到 main 分⽀
+$GIT checkout -b main
+# 创建 main.txt 文件并添加内容
+echo before main
+echo "Main" >| main.txt
+echo after main
+# 添加并提交 main.txt
+$GIT add main.txt
+hash=$(/bin/bash -c "$GIT commit -m 'main.txt' 2>&1")
+echo after commit
+
+# 创建 A 分⽀
+$GIT branch A
+# 切换到 A 分⽀
+$GIT checkout A
+# 创建 main.txt 文件并添加内容
+echo "A branch a" >| a.txt
+# 添加并提交 main.txt
+$GIT add a.txt
+hash1=$(/bin/bash -c "$GIT commit -m 'modify A main.txt' 2>&1")
+
+$GIT checkout main
+# 创建 B 分⽀
+$GIT branch B
+# 切换到 B 分⽀
+$GIT checkout B
+# 创建 main.txt 文件并添加内容
+echo "B branch file" >| file.txt
+# 添加并提交 file.txt
+$GIT add file.txt
+hash1=$(/bin/bash -c "$GIT commit -m 'add B file.txt' 2>&1")
+
+# 切换回 A 分⽀
+$GIT checkout A
+
+echo before merge
+# 合并 test 分⽀。请注意，合并分⽀中的不同文件的情景。
+merge_output=$(/bin/bash -c "$GIT merge B 2>&1")
+echo merge_output = $merge_output
+# 验证 main 分⽀是否包含 main.txt 和 main.txt 文件。除了文件，还可能是代码文件。
+if [ -f "main.txt" ] &&  echo $merge_output | grep 'conflict'; then
+echo "Success!"
+else
+    [ -f "main.txt" ] \
+        &&  echo $merge_output \
+        || echo main.txt not exists
+
+    echo "Failure"
+    exit 1
+fi
+
+## 如果合并的是Rust代码文件，我们还会⽤rustc编译，并检查程序执⾏结果。
+## 尝试编译 read_and_modify.rs
+#rustc read_and_modify.rs || { echo "Failed to compile read_and_modify.rs"; exit 1;
+#}
+## 执⾏编译后的程序
+#./read_and_modify > code_file.txt
+#content=$(cat code_file.txt)
+#echo "$content"
+## 假设当前分⽀是main，我们还可能测试合并多个分⽀。merge操作如果冲突则会输出冲突信息，⾏号。
+## 合并 temp1 分⽀
+#content1=$(./rust-git merge temp1 2>&1)
+## 合并 temp2 分⽀
+#content2=$(./rust-git merge temp2 2>&1)

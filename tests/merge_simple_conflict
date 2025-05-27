@@ -1,0 +1,63 @@
+#!/bin/bash
+
+setup() {
+    (
+        git init
+        echo 1 > 1
+        git add :/
+        git commit -m 'master'
+
+        git checkout -b A
+        echo common line1 >| 1
+        echo common line2 >| 1
+        for i in {1..10};do
+            echo A >> 1
+            echo >> 1
+        done
+        echo 2 > 2
+        git add :/
+        git commit -m 'A'
+
+        git switch master
+
+        git checkout -b B
+        echo common line1 >| 1
+        echo common line2 >| 1
+        for i in {1..10};do
+            echo B >> 1
+            echo >> 1
+        done
+        echo 3 > 3
+        git add :/
+        git commit -m 'B'
+
+        git switch A
+    ) &> /dev/null
+
+    echo '* (HEAD -> A) A'
+    echo '| * (B) B'
+    echo '|/'
+    echo '* (master) master'
+    echo 'this is your topo, yor are at A'
+}
+
+
+
+switch() {
+    ## switch from A ro B
+    # 1. update HEAD
+    echo 'ref: refs/heads/B' >| .git/HEAD
+
+    # 2. change index to `git read-tree B_tree_hash`
+    rm -rf .git/index
+    B_tree_hash=`git cat-file -p B | grep -Po '(?<=tree ).*'`
+    git read-tree $B_tree_hash
+
+    # 3. delete all old files and checkout all B's file
+    rm -rf **/*
+    for file in `git ls-files`;do
+        git checkout $file
+    done
+}
+
+git status &>/dev/null || setup
